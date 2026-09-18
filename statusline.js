@@ -68,7 +68,8 @@ function repoName(data) {
 
 function gitInfo(dir) {
   if (!dir) return null;
-  const opts = { cwd: dir, stdio: ["ignore", "pipe", "ignore"], timeout: 300 };
+  // Windows + AV makes git slow; 300ms killed it mid-call and dropped the branch entirely.
+  const opts = { cwd: dir, stdio: ["ignore", "pipe", "ignore"], timeout: 3000 };
   try {
     const branch = execSync("git rev-parse --abbrev-ref HEAD", opts).toString().trim();
     let dirty = false;
@@ -104,18 +105,15 @@ process.stdin.on("end", () => {
       ? ctx.used_percentage
       : typeof remainingPct === "number"
       ? 100 - remainingPct
-      : null;
+      : 0;
 
-  let ctxSegment = null;
-  if (typeof usedPct === "number") {
-    const color = usageTheme(usedPct);
-    ctxSegment = `${gaugeBar(usedPct)} ${color}${Math.round(usedPct)}%${RESET}`;
-  }
+  const color = usageTheme(usedPct);
+  const ctxSegment = `${gaugeBar(usedPct)} ${color}${Math.round(usedPct)}%${RESET}`;
 
   const projectDir = data.workspace?.project_dir || data.workspace?.current_dir || data.cwd;
   const repo = truncate(repoName(data), 24);
   const git = gitInfo(projectDir);
-  const dirtyPart = git?.dirty ? ` ${TOKYO.red}*${RESET}` : "";
+  const dirtyPart = git?.dirty ? ` ${TOKYO.red}*${RESET}` : ` ${TOKYO.green}✓${RESET}`;
   const added = data.cost?.total_lines_added;
   const removed = data.cost?.total_lines_removed;
   const linesPart =
